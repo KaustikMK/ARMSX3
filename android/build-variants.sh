@@ -148,8 +148,14 @@ build_variant() {
 	# defines the same 655 vk* globals our renderer uses and linking them together would let
 	# volkLoadDevice() repoint the whole renderer at framegen's device. The consequence for the
 	# build is that it is NOT a dependency of libarmsx3-core.so and will not be built by asking
-	# for it: name it here or ship an APK with frame generation silently missing.
-	PATH="$CMAKE_BIN:$PATH" ninja -C "$build_dir" android/libarmsx3-core.so armsx3_lsfg
+	# only for the core. However, the lsfg subdirectory intentionally returns without defining
+	# armsx3_lsfg when its private submodule is absent, so only request the target when CMake
+	# actually generated it.
+	local ninja_targets=(android/libarmsx3-core.so)
+	if PATH="$CMAKE_BIN:$PATH" ninja -C "$build_dir" -t targets | awk -F: '$1 == "armsx3_lsfg" { found = 1 } END { exit found ? 0 : 1 }'; then
+		ninja_targets+=(armsx3_lsfg)
+	fi
+	PATH="$CMAKE_BIN:$PATH" ninja -C "$build_dir" "${ninja_targets[@]}"
 
 	local host_tag
 	case "$(uname -s)" in
