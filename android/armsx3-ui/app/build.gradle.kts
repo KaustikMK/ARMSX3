@@ -25,15 +25,15 @@ plugins {
 
 android {
     namespace = "com.armsx2"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.armsx3"
-        // Set per variant by android/build-variants.sh: 33 for the A13 build (NDK 28), 35 for
-        // the A15 build (NDK 29). The core is compiled against the matching API, so these must
-        // agree -- an APK that installs below its core's target is a dlopen failure at boot.
+        // Set per variant by android/build-variants.sh: 30 for legacy/a11, 33 for the A13 build,
+        // and 35 for the A15 build. The core is compiled against the matching API, so these must
+        // agree -- an APK that installs below its core's platform is a dlopen failure at boot.
         minSdk = (project.findProperty("armsx3.minSdk") as String?)?.toInt() ?: 33
-        targetSdk = 37
+        targetSdk = 36
         versionCode = 20
         versionName = "0.9.4"
 

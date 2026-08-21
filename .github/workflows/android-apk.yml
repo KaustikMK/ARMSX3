@@ -70,11 +70,11 @@ jobs:
       - name: Install Android SDK components
         run: |
           sdkmanager --install \
-            "platforms;android-37" \
+            "platforms;android-36" \
             "platforms;android-35" \
             "platforms;android-33" \
             "platforms;android-30" \
-            "build-tools;37.0.0" \
+            "build-tools;36.0.0" \
             "cmake;${CMAKE_VERSION}" \
             "ndk;${NDK_VERSION}"
 
