@@ -58,6 +58,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
+          # The Android job checks out recursive third-party submodules. Some of
+          # those vendored projects contain Gradle wrapper jars that are not part
+          # of the ARMSX3 build and can fail setup-gradle's repository-wide
+          # wrapper validation before this workflow reaches the app build.
+          validate-wrappers: false
 
       - name: Install Android SDK components
         run: |
