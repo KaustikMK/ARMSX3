@@ -2,6 +2,7 @@
 #include "Emu/system_config.h"
 #include "Emu/Cell/PPUModule.h"
 #include "Emu/IdManager.h"
+#include "Emu/System.h"
 
 #include "cellGame.h"
 #include "cellSysutil.h"
@@ -105,6 +106,40 @@ struct CellGameUpdateParam
 
 using CellGameUpdateCallback = void(s32 status, s32 error_code, vm::ptr<void> userdata);
 using CellGameUpdateCallbackEx = void(vm::ptr<CellGameUpdateResult> result, vm::ptr<void> userdata);
+
+namespace
+{
+	constexpr std::string_view vsh_wireless_ssid = "RPCS3-XMB";
+
+	bool should_report_vsh_wireless()
+	{
+		return Emu.IsVsh();
+	}
+
+	std::array<u8, CELL_NET_CTL_BSSID_LEN> make_vsh_wireless_bssid(const std::array<u8, CELL_NET_CTL_ETHER_ADDR_LEN>& ether_addr)
+	{
+		auto bssid = ether_addr;
+
+		// Report a deterministic locally-administered BSSID derived from the host adapter.
+		bssid[0] = static_cast<u8>((bssid[0] | 0x02) & 0xfe);
+		bssid[5] ^= 0x01;
+
+		return bssid;
+	}
+
+	std::string make_default_route(u32 local_ip_addr)
+	{
+		if (!local_ip_addr)
+		{
+			return "192.168.1.1";
+		}
+
+		auto route = std::bit_cast<std::array<u8, 4>>(local_ip_addr);
+		route[3] = 1;
+		return fmt::format("%u.%u.%u.%u", route[0], route[1], route[2], route[3]);
+	}
+}
+
 
 error_code cellNetCtlInit()
 {
@@ -258,23 +293,28 @@ error_code cellNetCtlGetInfo(s32 code, vm::ptr<CellNetCtlInfo> info)
 
 	switch (code)
 	{
-	case CELL_NET_CTL_INFO_DEVICE: info->device = CELL_NET_CTL_DEVICE_WIRED; break;
+	case CELL_NET_CTL_INFO_DEVICE: info->device = should_report_vsh_wireless() ? CELL_NET_CTL_DEVICE_WIRELESS : CELL_NET_CTL_DEVICE_WIRED; break;
 	case CELL_NET_CTL_INFO_MTU: info->mtu = 1500; break;
 	case CELL_NET_CTL_INFO_LINK: info->link = CELL_NET_CTL_LINK_CONNECTED; break;
-	case CELL_NET_CTL_INFO_LINK_TYPE: info->link_type = CELL_NET_CTL_LINK_TYPE_100BASE_FULL; break;
-	// case CELL_NET_CTL_INFO_BSSID: break;
-	// case CELL_NET_CTL_INFO_SSID: break;
-	// case CELL_NET_CTL_INFO_WLAN_SECURITY: break;
-	// case CELL_NET_CTL_INFO_8021X_TYPE: break;
-	// case CELL_NET_CTL_INFO_8021X_AUTH_NAME: break;
+	case CELL_NET_CTL_INFO_LINK_TYPE: info->link_type = should_report_vsh_wireless() ? CELL_NET_CTL_LINK_TYPE_AUTO : CELL_NET_CTL_LINK_TYPE_100BASE_FULL; break;
+	case CELL_NET_CTL_INFO_BSSID:
+	{
+		const auto bssid = make_vsh_wireless_bssid(nph.get_ether_addr());
+		std::memcpy(info->bssid.data, bssid.data(), bssid.size());
+		break;
+	}
+	case CELL_NET_CTL_INFO_SSID: strcpy_trunc(reinterpret_cast<char*>(info->ssid.data), vsh_wireless_ssid); break;
+	case CELL_NET_CTL_INFO_WLAN_SECURITY: info->wlan_security = CELL_NET_CTL_WLAN_SECURITY_WPA2PSK_AES; break;
+	case CELL_NET_CTL_INFO_8021X_TYPE: info->auth_8021x_type = CELL_NET_CTL_8021X_NONE; break;
+	case CELL_NET_CTL_INFO_8021X_AUTH_NAME: info->auth_8021x_auth_name[0] = '\0'; break;
 	case CELL_NET_CTL_INFO_RSSI: info->rssi = 100; break; // wireless: value ranges from 0-100 indicating wireless connection strength
 	case CELL_NET_CTL_INFO_CHANNEL: info->channel = 1; break; // wireless: channel used to connect to the AP?
-	case CELL_NET_CTL_INFO_IP_CONFIG: info->ip_config = CELL_NET_CTL_IP_STATIC; break;
+	case CELL_NET_CTL_INFO_IP_CONFIG: info->ip_config = CELL_NET_CTL_IP_DHCP; break;
 	case CELL_NET_CTL_INFO_DHCP_HOSTNAME: strcpy_trunc(info->dhcp_hostname, nph.get_hostname()); break;
 	// case CELL_NET_CTL_INFO_PPPOE_AUTH_NAME: break;
 	case CELL_NET_CTL_INFO_IP_ADDRESS: strcpy_trunc(info->ip_address, np::ip_to_string(nph.get_local_ip_addr())); break; // verified on HW
 	case CELL_NET_CTL_INFO_NETMASK: strcpy_trunc(info->netmask, "255.255.255.0"); break;
-	case CELL_NET_CTL_INFO_DEFAULT_ROUTE: strcpy_trunc(info->default_route, "192.168.1.1"); break;
+	case CELL_NET_CTL_INFO_DEFAULT_ROUTE: strcpy_trunc(info->default_route, make_default_route(nph.get_local_ip_addr())); break;
 	case CELL_NET_CTL_INFO_PRIMARY_DNS: strcpy_trunc(info->primary_dns, np::ip_to_string(nph.get_dns_ip())); break;
 	case CELL_NET_CTL_INFO_SECONDARY_DNS: strcpy_trunc(info->secondary_dns, np::ip_to_string(nph.get_dns_ip())); break;
 	case CELL_NET_CTL_INFO_HTTP_PROXY_CONFIG: info->http_proxy_config = 0; break;
