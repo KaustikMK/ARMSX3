@@ -1,0 +1,84 @@
+name: Build Android APK
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/android-apk.yml'
+      - 'android/**'
+      - '3rdparty/**'
+      - 'rpcs3/**'
+      - 'CMakeLists.txt'
+  workflow_dispatch:
+    inputs:
+      variants:
+        description: 'Space-separated APK variants to build: legacy a11 a13 a15'
+        required: false
+        default: 'a13'
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/android-apk.yml'
+      - 'android/**'
+      - '3rdparty/**'
+      - 'rpcs3/**'
+      - 'CMakeLists.txt'
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-android-apk:
+    name: Android APK (${{ github.event.inputs.variants || 'a13' }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    env:
+      ANDROID_API: 33
+      CMAKE_VERSION: 3.30.5
+      NDK_VERSION: 29.0.14206865
+      OUT_DIR: ${{ github.workspace }}/artifacts/android
+      VARIANTS: ${{ github.event.inputs.variants || 'a13' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Install Android SDK components
+        run: |
+          sdkmanager --install \
+            "platforms;android-37" \
+            "platforms;android-35" \
+            "platforms;android-33" \
+            "platforms;android-30" \
+            "build-tools;37.0.0" \
+            "cmake;${CMAKE_VERSION}" \
+            "ndk;${NDK_VERSION}"
+
+      - name: Build Android APK
+        run: |
+          mkdir -p "${OUT_DIR}"
+          android/build-variants.sh
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: armsx3-android-apk-${{ github.event.inputs.variants || 'a13' }}
+          path: ${{ env.OUT_DIR }}/*.apk
+          if-no-files-found: error
+          compression-level: 0

@@ -151,7 +151,15 @@ build_variant() {
 	# for it: name it here or ship an APK with frame generation silently missing.
 	PATH="$CMAKE_BIN:$PATH" ninja -C "$build_dir" android/libarmsx3-core.so armsx3_lsfg
 
-	local strip="$ANDROID_HOME/ndk/$ndk/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip"
+	local host_tag
+	case "$(uname -s)" in
+		Darwin) host_tag="darwin-x86_64" ;;
+		Linux) host_tag="linux-x86_64" ;;
+		*) echo "unsupported host OS for Android NDK tools: $(uname -s)" >&2; return 1 ;;
+	esac
+
+	local ndk_tools="$ANDROID_HOME/ndk/$ndk/toolchains/llvm/prebuilt/$host_tag/bin"
+	local strip="$ndk_tools/llvm-strip"
 
 	"$strip" --strip-unneeded -o "$JNI_LIBS/libarmsx3-core.so" \
 		"$build_dir/android/libarmsx3-core.so"
@@ -166,7 +174,7 @@ build_variant() {
 		# Only the shim's own entry points may be dynamic: a single leaked vk* symbol means the
 		# dynamic linker can bind the renderer's Vulkan calls to framegen's copies.
 		local leaked
-		leaked=$("$ANDROID_HOME/ndk/$ndk/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-nm" \
+		leaked=$("$ndk_tools/llvm-nm" \
 			-D --defined-only "$JNI_LIBS_GITHUB/libarmsx3_lsfg.so" 2>/dev/null | grep -cE "vk[A-Z]|LSFG" || true)
 
 		if [[ "$leaked" != "0" ]]; then
