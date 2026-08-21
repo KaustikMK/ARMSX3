@@ -64,6 +64,9 @@ jobs:
           # wrapper validation before this workflow reaches the app build.
           validate-wrappers: false
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install Android SDK components
         run: |
           sdkmanager --install \
