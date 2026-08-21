@@ -34,7 +34,7 @@
 #pragma clang diagnostic ignored "-Wcast-qual"
 #pragma clang diagnostic ignored "-Wunused-function"
 #endif
-#include <librashader_ld.h>
+#include "librashader/librashader_ld.h"
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif

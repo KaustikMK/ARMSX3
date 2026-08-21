@@ -73,20 +73,9 @@ set_target_properties(rpcsx-android PROPERTIES OUTPUT_NAME armsx3-core)
 
 target_compile_features(rpcsx-android PRIVATE cxx_std_23)
 
-# The librashader upscaler lives in rpcs3/Emu/RSX/VK/, i.e. it compiles into
-# rpcs3_emu -- not into this target -- so the header search path has to be added
-# there. This directory is processed after add_subdirectory(rpcs3), so the target
-# already exists. librashader_ld.h is a header-only permissive loader that
-# dlopen()s librashader.so at runtime; nothing MPL-licensed is linked in. See the
-# licensing note at the top of upscalers/librashader_pass.h.
-target_include_directories(rpcs3_emu PRIVATE
-    ${CMAKE_SOURCE_DIR}/3rdparty/librashader/include
-)
-
 target_include_directories(rpcsx-android PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/rpcs3
-    ${CMAKE_SOURCE_DIR}/3rdparty/librashader/include
     # rpcsx-android.cpp pulls in Input/hid_pad_handler.h (DS3/DS4/DualSense
     # over USB) and hidapi_libusb.h/libusb.h directly. rpcs3_emu links these
     # PRIVATE, so their include dirs do not propagate to us.
