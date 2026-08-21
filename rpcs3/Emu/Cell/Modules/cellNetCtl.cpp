@@ -303,7 +303,13 @@ error_code cellNetCtlGetInfo(s32 code, vm::ptr<CellNetCtlInfo> info)
 		std::memcpy(info->bssid.data, bssid.data(), bssid.size());
 		break;
 	}
-	case CELL_NET_CTL_INFO_SSID: strcpy_trunc(reinterpret_cast<char*>(info->ssid.data), vsh_wireless_ssid); break;
+	case CELL_NET_CTL_INFO_SSID:
+	{
+		std::fill_n(info->ssid.data, std::size(info->ssid.data), u8{});
+		info->ssid.term = 0;
+		std::copy_n(vsh_wireless_ssid.data(), std::min<usz>(vsh_wireless_ssid.size(), std::size(info->ssid.data)), info->ssid.data);
+		break;
+	}
 	case CELL_NET_CTL_INFO_WLAN_SECURITY: info->wlan_security = CELL_NET_CTL_WLAN_SECURITY_WPA2PSK_AES; break;
 	case CELL_NET_CTL_INFO_8021X_TYPE: info->auth_8021x_type = CELL_NET_CTL_8021X_NONE; break;
 	case CELL_NET_CTL_INFO_8021X_AUTH_NAME: info->auth_8021x_auth_name[0] = '\0'; break;
